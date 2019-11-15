@@ -58,6 +58,7 @@
 #include "ompl/base/objectives/MinimaxObjective.h"
 #include "ompl/base/objectives/StateCostIntegralObjective.h"
 #include "ompl/base/objectives/MaximizeMinClearanceObjective.h"
+#include "ompl/base/objectives/CustomObjective.h" // Add our new objective
 
 ompl_interface::ModelBasedPlanningContext::ModelBasedPlanningContext(const std::string& name,
                                                                      const ModelBasedPlanningContextSpecification& spec)
@@ -306,6 +307,11 @@ void ompl_interface::ModelBasedPlanningContext::useConfig()
   else if (optimizer == "MaximizeMinClearanceObjective")
   {
     objective.reset(new ompl::base::MaximizeMinClearanceObjective(ompl_simple_setup_->getSpaceInformation()));
+  }
+  else if (optimizer == "CustomObjective")
+  {
+    // Add our new objective
+    objective.reset(new ompl::base::CustomObjective(ompl_simple_setup_->getSpaceInformation()));
   }
   else
   {
