@@ -2,12 +2,12 @@
 # Used with wstool, users can download source of all packages of MoveIt!.
 - git:
     local-name: moveit
-    uri: https://github.com/ros-planning/moveit.git
-    version: kinetic-devel
+    uri: https://github.com/cairo-robotics/moveit.git
+    version: custom-cost-kinetic
 - git:
     local-name: moveit_msgs
-    uri: https://github.com/ros-planning/moveit_msgs.git
-    version: kinetic-devel
+    uri: https://github.com/cairo-robotics/moveit_msgs.git
+    version: custom-cost-kinetic
 - git:
     local-name: moveit_resources
     uri: https://github.com/ros-planning/moveit_resources.git
