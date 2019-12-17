@@ -38,6 +38,8 @@
 #include <moveit/ompl_interface/model_based_planning_context.h>
 #include <moveit/profiler/profiler.h>
 #include <ros/ros.h>
+#include "moveit_msgs/CustomCost.h"
+
 
 ompl_interface::StateValidityChecker::StateValidityChecker(const ModelBasedPlanningContext* pc)
   : ompl::base::StateValidityChecker(pc->getOMPLSimpleSetup()->getSpaceInformation())
@@ -138,6 +140,10 @@ bool ompl_interface::StateValidityChecker::isValidWithoutCache(const ompl::base:
   planning_context_->getPlanningScene()->checkCollision(
       verbose ? collision_request_simple_verbose_ : collision_request_simple_, res, *kstate);
   return res.collision == false;
+
+  // check for constraints/cost/statevalidity server
+  return callCustomStateValidityService(state);
+
 }
 
 bool ompl_interface::StateValidityChecker::isValidWithoutCache(const ompl::base::State* state, double& dist,
@@ -178,6 +184,9 @@ bool ompl_interface::StateValidityChecker::isValidWithoutCache(const ompl::base:
       verbose ? collision_request_with_distance_verbose_ : collision_request_with_distance_, res, *kstate);
   dist = res.distance;
   return res.collision == false;
+
+  // check for constraints/cost/statevalidity server
+  return callCustomStateValidityService(state);
 }
 
 bool ompl_interface::StateValidityChecker::isValidWithCache(const ompl::base::State* state, bool verbose) const
@@ -274,4 +283,61 @@ bool ompl_interface::StateValidityChecker::isValidWithCache(const ompl::base::St
       verbose ? collision_request_with_distance_verbose_ : collision_request_with_distance_, res, *kstate);
   dist = res.distance;
   return res.collision == false;
+}
+
+bool ompl_interface::StateValidityChecker::callCustomStateValidityService(const ompl::base::State* s) const
+{
+    // Static local variable to make sure to only print warning once
+    static bool printWarning = true;
+   // Create ROS client
+    ros::NodeHandle n;
+    ros::ServiceClient client = n.serviceClient<moveit_msgs::CustomCost>("custom_cost");
+    moveit_msgs::CustomCost srv;
+
+    // Pull out the model based state given by MoveIt!
+    // NOTE: This asumes a ModelBasedStateSpace is used. May not be the case on all systems!!
+    const ompl_interface::ModelBasedStateSpace::StateType *state = s->as<ompl_interface::ModelBasedStateSpace::StateType>();
+    unsigned int dimension = si_->getStateSpace()->getDimension();
+
+    // Build the service request
+    srv.request.state.clear();
+    for (unsigned int i = 0; i < dimension; ++i)
+    {
+        srv.request.state.push_back(state->values[i]);
+    }
+
+    // Request cost from ROS server (if call successful use that cost, else use clearance)
+    ompl::base::Cost costValue;
+    if (client.call(srv))
+    {
+        unsigned int type = srv.response.type;
+
+        switch (type)
+        {
+            case 0: // Use the returned cost
+                return true;
+            case 1: // Use infinite positive cost
+                return false;
+            case 2: // Infinite negative cost means valid.
+                return true;
+            case 3: // Use clearance cost means no constraint checking so valid.
+                return true;
+            default: // code to be executed if n doesn't match any cases
+                ROS_WARN("Invalid type value. Ignoring validityService. Make sure your cost server is returning an int value 0-3.");
+                return true;
+        }
+
+        // Print warning again if connection to server is lost
+        printWarning = true;
+    }
+    else
+    {
+        // Only print the warning once
+        if (printWarning)
+        {
+            ROS_WARN("Failed to call service custom_cost. Assuming valid cost service response.");
+            printWarning = false;
+        }
+        return true;
+    }
 }

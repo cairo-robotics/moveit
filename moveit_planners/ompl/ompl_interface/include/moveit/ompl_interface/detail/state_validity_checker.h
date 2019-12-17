@@ -67,6 +67,7 @@ public:
 
   virtual double cost(const ompl::base::State* state) const;
   virtual double clearance(const ompl::base::State* state) const;
+  bool callCustomStateValidityService(const ompl::base::State* state) const;
 
   void setVerbose(bool flag);
 
